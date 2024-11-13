@@ -103,7 +103,7 @@ def display_post(post):
     st.markdown(f"### {post['title']}")
     st.markdown(f"Posted by u/{post['author_name']} in r/{post['subreddit_name']}")
     st.markdown(post['content'])
-    
+
     col1, col2, col3 = st.columns([1, 1, 8])
     with col1:
         if st.button("⬆️", key=f"up_{post['id']}"):
@@ -122,7 +122,16 @@ def display_post(post):
                 st.error("Please login to vote")
 
     st.markdown(f"Score: {post['upvotes'] - post['downvotes']}")
-    
+
+    # Delete button for the post if the user is the creator
+    if st.session_state.user and st.session_state.user['username'] == post['subreddit_creator']:
+        if st.button("🗑️ Delete Post", key=f"delete_post_{post['id']}"):
+            if db.delete_post(post['id'], post['subreddit_id'], st.session_state.user['username']):
+                st.success("Post deleted successfully.")
+                st.experimental_rerun()
+            else:
+                st.error("Error deleting post.")
+
     # Comments
     comments = db.get_comments(post['id'])
     if st.session_state.user:
@@ -135,7 +144,34 @@ def display_post(post):
                 st.error("Error adding comment")
 
     for comment in comments:
+        col1, col2, col3 = st.columns([1, 1, 8])
+        with col1:
+            if st.button("⬆️", key=f"up_comment_{comment['id']}"):
+                if st.session_state.user:
+                    db.vote_item(comment['id'], st.session_state.user['username'], 1, item_type='comment')
+                    st.experimental_rerun()
+                else:
+                    st.error("Please login to vote")
+        with col2:
+            if st.button("⬇️", key=f"down_comment_{comment['id']}"):
+                if st.session_state.user:
+                    db.vote_item(comment['id'], st.session_state.user['username'], -1, item_type='comment')
+                    st.experimental_rerun()
+                else:
+                    st.error("Please login to vote")
+
+        st.markdown(f"Score: {comment['upvotes'] - comment['downvotes']}")
         st.markdown(f"> **{comment['author_name']}**: {comment['content']}")
+
+        # Delete button for the comment if the user is the creator
+        if st.session_state.user and st.session_state.user['username'] == post['subreddit_creator']:
+            if st.button("🗑️ Delete Comment", key=f"delete_comment_{comment['id']}"):
+                if db.delete_comment(comment['id'], post['id'], st.session_state.user['username']):
+                    st.success("Comment deleted successfully.")
+                    st.experimental_rerun()
+                else:
+                    st.error("Error deleting comment.")
+
 
 def home_page():
     st.title("Reddit Clone")
