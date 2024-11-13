@@ -4,9 +4,9 @@ dbms project
 1. Run the schema.sql file to create the database
 
 2. Make a .env file containing:
-    DB_HOST=localhost
-    DB_USER="your user"
-    DB_PASSWORD="your password"
+    DB_HOST=localhost\n
+    DB_USER="your user"\n
+    DB_PASSWORD="your password"\n
     DB_NAME=reddit_clone
 
 3. Install dependencies:
