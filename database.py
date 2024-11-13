@@ -117,7 +117,7 @@ def get_posts(subreddit_id=None):
     try:
         if subreddit_id:
             sql = """
-                SELECT p.*, u.username as author_name, s.name as subreddit_name
+                SELECT p.*, u.username as author_name, s.name as subreddit_name, s.creator as subreddit_creator
                 FROM posts p
                 JOIN users u ON p.author = u.username
                 JOIN subreddits s ON p.subreddit_id = s.id
@@ -132,7 +132,7 @@ def get_posts(subreddit_id=None):
 
         else:
             sql = """
-                SELECT p.*, u.username as author_name, s.name as subreddit_name
+                SELECT p.*, u.username as author_name, s.name as subreddit_name, s.creator as subreddit_creator
                 FROM posts p
                 JOIN users u ON p.author = u.username
                 JOIN subreddits s ON p.subreddit_id = s.id
@@ -151,6 +151,7 @@ def get_posts(subreddit_id=None):
     finally:
         cursor.close()
         conn.close()
+
 
 def get_post_vote_counts(post_id):
     conn = get_db_connection()
@@ -235,6 +236,62 @@ def vote_item(item_id, username, vote_type, item_type):
         cursor.callproc('vote_item', (item_id, username, vote_type, item_type))
         conn.commit()
         return True
+    except Error as e:
+        print(f"Error: {e}")
+        conn.rollback()
+        return False
+    finally:
+        cursor.close()
+        conn.close()
+
+def delete_post(post_id, subreddit_id, username):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # Check if the user is the creator of the subreddit
+        sql = "SELECT creator FROM subreddits WHERE id = %s"
+        cursor.execute(sql, (subreddit_id,))
+        creator = cursor.fetchone()[0]
+        
+        if creator == username:
+            # Delete post if user is creator
+            sql_delete = "DELETE FROM posts WHERE id = %s"
+            cursor.execute(sql_delete, (post_id,))
+            conn.commit()
+            return True
+        else:
+            return False
+    except Error as e:
+        print(f"Error: {e}")
+        conn.rollback()
+        return False
+    finally:
+        cursor.close()
+        conn.close()
+
+def delete_comment(comment_id, post_id, username):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # Get the subreddit_id and creator from the post associated with this comment
+        sql = """
+            SELECT p.subreddit_id, s.creator 
+            FROM posts p
+            JOIN subreddits s ON p.subreddit_id = s.id
+            WHERE p.id = %s
+        """
+        cursor.execute(sql, (post_id,))
+        result = cursor.fetchone()
+
+        if result:
+            subreddit_id, creator = result  # Correctly unpack the result
+            if creator == username:
+                # Delete the comment if the user is the creator of the subreddit
+                sql_delete = "DELETE FROM comments WHERE id = %s"
+                cursor.execute(sql_delete, (comment_id,))
+                conn.commit()
+                return True
+        return False
     except Error as e:
         print(f"Error: {e}")
         conn.rollback()
