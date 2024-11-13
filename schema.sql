@@ -71,7 +71,7 @@ CREATE TABLE votes (
   CHECK (NOT (post_id IS NOT NULL AND comment_id IS NOT NULL))  -- Prevent both from being non-NULL
 );
 
--- Procedures
+-- Procedure(s)
 
 drop procedure if exists vote_item;
 
@@ -123,5 +123,20 @@ BEGIN
         SET MESSAGE_TEXT = 'Invalid item_type';
     END IF;
 END //
+
+DELIMITER ;
+
+-- Trigger(s)
+
+DELIMITER //
+
+CREATE TRIGGER after_subreddit_insert
+AFTER INSERT ON subreddits
+FOR EACH ROW
+BEGIN
+    -- Insert the subreddit creator into the moderators table
+    INSERT INTO moderators (subreddit_id, username)
+    VALUES (NEW.id, NEW.creator);
+END//
 
 DELIMITER ;
